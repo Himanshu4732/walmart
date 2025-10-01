@@ -1,0 +1,275 @@
+name: HarvestIQ CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Backend Tests
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        python -m pytest test_main.py -v --tb=short
+
+    - name: Test backend startup
+      run: |
+        cd backend
+        timeout 10s uvicorn app.main:app --host 0.0.0.0 --port 8000 || true
+
+  # Frontend Tests
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run ESLint
+      run: |
+        cd frontend
+        npm run lint
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/dist/
+
+  # Docker Build Test
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build backend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: false
+        tags: harvestiq/backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build frontend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: false
+        tags: harvestiq/frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test docker-compose build
+      run: |
+        docker-compose build
+        docker-compose config
+
+  # Integration Tests
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create .env file
+      run: |
+        cp .env.example .env
+        echo "SECRET_KEY=test-secret-key-for-ci" >> .env
+
+    - name: Start services with docker-compose
+      run: |
+        docker-compose up -d
+        sleep 30  # Wait for services to start
+
+    - name: Check service health
+      run: |
+        # Check backend health
+        curl -f http://localhost:8000/health || exit 1
+        
+        # Check frontend is serving
+        curl -f http://localhost:5173 || exit 1
+        
+        # Check API endpoints
+        curl -f http://localhost:8000/docs || exit 1
+
+    - name: Run integration tests
+      run: |
+        # Test user registration
+        response=$(curl -s -X POST "http://localhost:8000/auth/register" \
+          -H "Content-Type: application/json" \
+          -d '{"email":"test@ci.com","password":"testpass","name":"CI Test","role":"farmer"}')
+        echo "Registration response: $response"
+        
+        # Test login
+        token=$(curl -s -X POST "http://localhost:8000/auth/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "username=test@ci.com&password=testpass" | jq -r '.access_token')
+        echo "Got token: ${token:0:20}..."
+        
+        # Test authenticated endpoint
+        curl -f -H "Authorization: Bearer $token" http://localhost:8000/auth/me
+
+    - name: Show service logs on failure
+      if: failure()
+      run: |
+        echo "=== Backend Logs ==="
+        docker-compose logs backend
+        echo "=== Frontend Logs ==="
+        docker-compose logs frontend
+
+    - name: Stop services
+      if: always()
+      run: |
+        docker-compose down -v
+
+  # Security Scan
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Deploy to staging (on main branch)
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, docker-build, integration-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: |
+          harvestiq/backend:latest
+          harvestiq/backend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          harvestiq/frontend:latest
+          harvestiq/frontend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Backend image: harvestiq/backend:${{ github.sha }}"
+        echo "Frontend image: harvestiq/frontend:${{ github.sha }}"
+        # Add your deployment commands here
+        # e.g., kubectl apply, docker-compose pull && docker-compose up -d, etc.
+
+  # Notify on completion
+  notify:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, docker-build, integration-test]
+    if: always()
+    
+    steps:
+    - name: Notify success
+      if: ${{ needs.backend-test.result == 'success' && needs.frontend-test.result == 'success' && needs.docker-build.result == 'success' && needs.integration-test.result == 'success' }}
+      run: |
+        echo "✅ All tests passed! HarvestIQ is ready for deployment."
+
+    - name: Notify failure
+      if: ${{ needs.backend-test.result == 'failure' || needs.frontend-test.result == 'failure' || needs.docker-build.result == 'failure' || needs.integration-test.result == 'failure' }}
+      run: |
+        echo "❌ Some tests failed. Please check the logs."
+        exit 1

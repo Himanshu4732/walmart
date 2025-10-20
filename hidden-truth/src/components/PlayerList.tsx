@@ -11,12 +11,13 @@ import { Check, X } from 'lucide-react';
 import { Player } from '@/hooks/usePlayers';
 
 interface PlayerListProps {
+  roomId: string;
   players: Player[];
   currentPlayer: Player | undefined;
   isHost: boolean;
 }
 
-export function PlayerList({ players, currentPlayer, isHost }: PlayerListProps) {
+export function PlayerList({ roomId, players, currentPlayer }: PlayerListProps) {
   const [updating, setUpdating] = useState<string | null>(null);
 
   const toggleReady = async (player: Player) => {
@@ -24,7 +25,7 @@ export function PlayerList({ players, currentPlayer, isHost }: PlayerListProps) 
     
     setUpdating(player.uid);
     try {
-      await updateDoc(doc(db, 'rooms', 'temp', 'players', player.uid), {
+      await updateDoc(doc(db, 'rooms', roomId, 'players', player.uid), {
         isReady: !player.isReady
       });
     } catch (error) {

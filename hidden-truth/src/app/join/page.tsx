@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { joinRoomByCode } from '@/lib/gameFunctions';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function JoinPage() {
+function JoinPageContent() {
   const { user, loading: authLoading, signIn } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -44,8 +44,8 @@ export default function JoinPage() {
     try {
       const result = await joinRoomByCode(joinCode.trim(), displayName.trim());
       router.push(`/room/${result.roomId}`);
-    } catch (error: any) {
-      setError(error.message || 'Failed to join room');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to join room');
     } finally {
       setIsJoining(false);
     }
@@ -132,5 +132,13 @@ export default function JoinPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div>Loading...</div></div>}>
+      <JoinPageContent />
+    </Suspense>
   );
 }

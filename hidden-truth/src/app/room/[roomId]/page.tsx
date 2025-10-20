@@ -7,13 +7,14 @@ import { useRoom } from '@/hooks/useRoom';
 import { usePlayers } from '@/hooks/usePlayers';
 import { useGameState } from '@/hooks/useGameState';
 import { useHeartbeat } from '@/hooks/useHeartbeat';
-import { startGameInRoom, advanceGamePhase } from '@/lib/gameFunctions';
+import { startGameInRoom } from '@/lib/gameFunctions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, Users, Play, Copy, QrCode, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import QRCode from 'qrcode';
 import { PlayerList } from '@/components/PlayerList';
 import { PhaseBanner } from '@/components/PhaseBanner';
@@ -40,7 +41,7 @@ export default function RoomPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showQR, setShowQR] = useState(false);
 
-  const isHost = user && room && user.uid === room.hostUid;
+  const isHost = Boolean(user && room && user.uid === room.hostUid);
   const currentPlayer = players.find(p => p.uid === user?.uid);
   const allPlayersReady = players.length >= 2 && players.every(p => p.isReady);
 
@@ -70,13 +71,6 @@ export default function RoomPage() {
     }
   };
 
-  const handleAdvancePhase = async () => {
-    try {
-      await advanceGamePhase(roomId);
-    } catch (error) {
-      console.error('Error advancing phase:', error);
-    }
-  };
 
   const copyRoomCode = () => {
     if (room) {
@@ -163,7 +157,7 @@ export default function RoomPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <img src={qrCodeUrl} alt="QR Code" className="mx-auto mb-4" />
+                <Image src={qrCodeUrl} alt="QR Code" width={200} height={200} className="mx-auto mb-4" />
                 <Button onClick={() => setShowQR(false)} variant="outline">
                   Close
                 </Button>
@@ -190,6 +184,7 @@ export default function RoomPage() {
                   </CardHeader>
                   <CardContent>
                     <PlayerList 
+                      roomId={roomId}
                       players={players} 
                       currentPlayer={currentPlayer}
                       isHost={isHost}
@@ -275,14 +270,6 @@ export default function RoomPage() {
                   <span className="text-sm text-gray-600 dark:text-gray-400">Players:</span>
                   <span className="text-sm font-medium">{room.playerCount}/{room.maxPlayers}</span>
                 </div>
-                {room.startedAt && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Started:</span>
-                    <span className="text-sm font-medium">
-                      {new Date(room.startedAt.seconds * 1000).toLocaleTimeString()}
-                    </span>
-                  </div>
-                )}
               </CardContent>
             </Card>
 

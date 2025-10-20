@@ -33,8 +33,8 @@ export default function Home() {
     try {
       const result = await createNewRoom();
       router.push(`/room/${result.roomId}`);
-    } catch (error: any) {
-      setError(error.message || 'Failed to create room');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to create room');
     } finally {
       setIsCreating(false);
     }
@@ -52,8 +52,8 @@ export default function Home() {
     try {
       const result = await joinRoomByCode(joinCode.trim(), displayName.trim());
       router.push(`/room/${result.roomId}`);
-    } catch (error: any) {
-      setError(error.message || 'Failed to join room');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Failed to join room');
     } finally {
       setIsJoining(false);
     }

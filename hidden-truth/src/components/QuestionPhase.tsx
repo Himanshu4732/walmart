@@ -11,7 +11,7 @@ interface QuestionPhaseProps {
   currentPlayer: Player | undefined;
 }
 
-export function QuestionPhase({ roomId, gameState, players, currentPlayer }: QuestionPhaseProps) {
+export function QuestionPhase({ gameState, players, currentPlayer }: QuestionPhaseProps) {
   const isMyTurn = currentPlayer && gameState.askTurnUid === currentPlayer.uid;
 
   return (
@@ -25,15 +25,15 @@ export function QuestionPhase({ roomId, gameState, players, currentPlayer }: Que
       <CardContent>
         {isMyTurn ? (
           <div className="text-center py-8">
-            <div className="text-green-600 font-medium mb-2">It's your turn!</div>
+            <div className="text-green-600 font-medium mb-2">It&apos;s your turn!</div>
             <p className="text-sm text-gray-600">Ask a question to another player</p>
           </div>
         ) : (
           <div className="text-center py-8">
             <div className="text-blue-600 font-medium mb-2">
-              {players.find(p => p.uid === gameState.askTurnUid)?.displayName}'s turn
+              {players.find(p => p.uid === gameState.askTurnUid)?.displayName}&apos;s turn
             </div>
-            <p className="text-sm text-gray-600">Waiting for them to ask a question...</p>
+            <p className="text-sm text-gray-600">Waiting for them to ask a question&hellip;</p>
           </div>
         )}
       </CardContent>

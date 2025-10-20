@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface Player {
@@ -8,8 +8,8 @@ export interface Player {
   photoURL: string | null;
   isReady: boolean;
   isConnected: boolean;
-  lastSeen: any;
-  joinedAt: any;
+  lastSeen: unknown;
+  joinedAt: unknown;
   role: 'truth' | 'impostor' | null;
 }
 

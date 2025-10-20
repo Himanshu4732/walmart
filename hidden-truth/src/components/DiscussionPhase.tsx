@@ -9,7 +9,7 @@ interface DiscussionPhaseProps {
   currentPlayer: Player | undefined;
 }
 
-export function DiscussionPhase({ roomId, players, currentPlayer }: DiscussionPhaseProps) {
+export function DiscussionPhase({ }: DiscussionPhaseProps) {
   return (
     <Card>
       <CardHeader>

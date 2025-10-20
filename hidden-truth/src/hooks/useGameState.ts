@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 
 export interface GameState {
   phase: 'clue' | 'question' | 'task' | 'discussion' | 'vote' | 'reveal';
-  phaseEndsAt: any;
+  phaseEndsAt: unknown;
   askTurnUid: string | null;
   taskSeed: string | null;
   eliminatedUid?: string;

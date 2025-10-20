@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, DocumentData } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface Room {
@@ -9,9 +9,9 @@ export interface Room {
   status: 'lobby' | 'inRound' | 'revealing' | 'ended';
   maxPlayers: number;
   playerCount: number;
-  createdAt: any;
-  updatedAt: any;
-  startedAt?: any;
+  createdAt: unknown;
+  updatedAt: unknown;
+  startedAt?: unknown;
 }
 
 export function useRoom(roomId: string | null) {

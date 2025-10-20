@@ -10,7 +10,7 @@ interface TaskPhaseProps {
   currentPlayer: Player | undefined;
 }
 
-export function TaskPhase({ roomId, gameState, currentPlayer }: TaskPhaseProps) {
+export function TaskPhase({ currentPlayer }: TaskPhaseProps) {
   return (
     <Card>
       <CardHeader>

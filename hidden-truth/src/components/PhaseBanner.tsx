@@ -13,11 +13,11 @@ export function PhaseBanner({ gameState }: PhaseBannerProps) {
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
-    if (!gameState?.phaseEndsAt) return;
+    if (!gameState?.phaseEndsAt || typeof gameState.phaseEndsAt !== 'object' || !('toDate' in gameState.phaseEndsAt)) return;
 
     const updateTimer = () => {
       const now = new Date();
-      const endTime = gameState.phaseEndsAt.toDate();
+      const endTime = (gameState.phaseEndsAt as { toDate: () => Date }).toDate();
       const diff = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
       setTimeLeft(diff);
     };

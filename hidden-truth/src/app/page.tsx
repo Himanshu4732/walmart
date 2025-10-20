@@ -1,103 +1,183 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
+import { createNewRoom, joinRoomByCode } from '@/lib/gameFunctions';
+import { Loader2, Users, Gamepad2 } from 'lucide-react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { user, loading: authLoading, signIn } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    if (!authLoading && !user) {
+      signIn();
+    }
+  }, [authLoading, user, signIn]);
+
+  const handleCreateRoom = async () => {
+    if (!user) return;
+    
+    setIsCreating(true);
+    setError('');
+    
+    try {
+      const result = await createNewRoom();
+      router.push(`/room/${result.roomId}`);
+    } catch (error: any) {
+      setError(error.message || 'Failed to create room');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (!user || !joinCode.trim() || !displayName.trim()) {
+      setError('Please enter both room code and display name');
+      return;
+    }
+    
+    setIsJoining(true);
+    setError('');
+    
+    try {
+      const result = await joinRoomByCode(joinCode.trim(), displayName.trim());
+      router.push(`/room/${result.roomId}`);
+    } catch (error: any) {
+      setError(error.message || 'Failed to join room');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-2xl mx-auto text-center mb-12">
+          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Hidden Truth
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+            A social deduction game where one impostor tries to blend in with the truth-tellers
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Create Room Card */}
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Gamepad2 className="h-5 w-5" />
+                Create Room
+              </CardTitle>
+              <CardDescription>
+                Start a new game and invite friends
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleCreateRoom} 
+                disabled={isCreating || !user}
+                className="w-full"
+                size="lg"
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create New Room'
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Join Room Card */}
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Users className="h-5 w-5" />
+                Join Room
+              </CardTitle>
+              <CardDescription>
+                Enter a room code to join an existing game
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input
+                placeholder="Room Code (6 digits)"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                maxLength={6}
+                className="text-center text-lg font-mono"
+              />
+              <Input
+                placeholder="Your Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={20}
+              />
+              <Button 
+                onClick={handleJoinRoom} 
+                disabled={isJoining || !user || !joinCode.trim() || !displayName.trim()}
+                className="w-full"
+                size="lg"
+              >
+                {isJoining ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Joining...
+                  </>
+                ) : (
+                  'Join Room'
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Error Message */}
+          {error && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+              <CardContent className="pt-6">
+                <p className="text-red-600 dark:text-red-400 text-center">{error}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Game Rules */}
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <CardHeader>
+              <CardTitle className="text-lg">How to Play</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+              <p>• 2-6 players can join a room</p>
+              <p>• One player is secretly the impostor</p>
+              <p>• Everyone else knows the secret word</p>
+              <p>• Give clues, ask questions, complete tasks</p>
+              <p>• Vote to eliminate the impostor</p>
+              <p>• If impostor survives, they get one guess at the word</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
